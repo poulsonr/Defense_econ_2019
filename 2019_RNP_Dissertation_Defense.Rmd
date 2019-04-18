@@ -1,0 +1,1202 @@
+---
+title: |  
+  | Bayesian Additive Regression Trees &  
+  | The Next Generation of Juvenile Justice Risk Assessments
+author: |  
+  | 
+  | RN Poulson
+  | University of Utah
+  | Final Defense, Spring 2019  
+  |   
+output:
+  revealjs::revealjs_presentation:
+    transition: slide
+    theme: night
+    css: night.css
+    self_contained: false
+    reveal_options:
+      slideNumber: true
+      chalkboard:
+        theme: whiteboard
+        toggleNotesButton: false
+---
+
+```{r include=FALSE, echo=FALSE}
+
+library(ggthemes)
+library(readr)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(plotly)
+library(visNetwork)
+library(rpart)
+library(ggplot2)
+library(plotly)
+library(scales)
+
+knitr::opts_chunk$set(echo=FALSE,message=FALSE,warning=FALSE)
+
+
+```
+
+
+# Introduction          
+
+## Recidivism Risk {data-background=#fff} 
+
+<br>  
+<div id="left">  
+
+###### Overall  
+  
+- Structured tools to estimate recidivism risk.  
+
+- Statistical analysis of theoretically based factors.  
+  
+- Research shows outcomes are maximized.  
+
+</div>
+
+<div id="left">  
+  
+###### Utah {data-background=#fff}   
+
+- Costs range from \$11 to \$1,224 per youth per day.  
+
+- Risk assessment data shapes policies.  
+
+- HB 239 $\rightarrow$ 2 primary tools:  
+    * PSRA/PRA (Study 1)     
+    * DRAT (Study 2).      
+
+</div>
+
+
+  
+##Literature {data-background="books_2.jpg" background-color="#fff"}  
+  
+<br>  
+
+  
+<div id="left">  
+ 
+######Study 1
+
+
+- Decades of research.    
+  
+- U.S. and worldwide.   
+  
+- Debate around methods (progressive vs. conventional).    
+  
+
+  
+</div>  
+  
+
+<div id="left">
+
+###### Study 2  
+
+- Experts recommend.   
+  
+- Adoption in many states.   
+  
+- Committee consensus.   
+  
+</div>   
+
+  
+<br>  
+
+   
+
+
+#Methods    
+
+##BART {data-background="#fff"} 
+  
+<div id="left">
+######Basic Decision Tree  
+<center>
+<bold>
+$g(x;T,M)$
+</bold>  
+</center>  
+```{r fig.align='left', echo=FALSE, message=FALSE, warning=FALSE}
+
+
+res <- rpart(Species~., data=iris)
+
+visTree(res, 
+        data = iris, 
+        main = " ",
+        legend=FALSE,
+        colorVar=c("#30303a"),
+        colorY=c("#fff999","#fff001"),
+        colorEdges = c("#AFBAC4"),
+        width="100%",
+        height="500px",
+        nodesFontSize = 16,
+        edgesFontSize = 14,
+        minNodeSize = 42,
+        maxNodeSize = 42,
+        fallenLeaves = TRUE)%>%
+  visExport(type = "jpeg", name = "export-network", 
+   float = "left", label = " ", background = "white", style= "")%>%
+  addFontAwesome()
+
+```
+  
+
+  
+</div>
+
+<div id="right">  
+  
+
+######Sum-of-trees Model    
+ 
+<center>   
+$p(x) ≡ P [Yi = 1|X] = Φ[G(x)]$  
+<small>   
+  
+  - $G(x)\equiv\sum_{j=1}^{m}g(x;T_j,M_j)$,  
+  
+     - $T_j$ represents a particular binary tree,
+  
+     - $M_j$ is a set of parameter values {$\mu_1,\mu_2,...,\mu_B$} associated by each terminal node of $T_j$ 
+  
+     - $x$ is a vector of predictors, and  
+  
+  - $\Phi[.]$ standard normal cumulative distribution function used as the link function.  
+
+</small>
+</center>  
+</div>  
+  
+
+  
+##BART {data-background=#fff}    
+<br>  
+  
+######Posterior Estimation  
+  
+$p(T,M,Z|X,Y)\propto p(Y|Z)p(Z|X,T,M)[\Pi_j\Pi_i p(\mu_{ij}|T_j)p(T_j)]$   
+<small> 
+**Ultimate goal** generate a large number of trees given the observed data to estimate $p(T,M,Z|X,Y)$   
+$\Downarrow$  
+<br>
+**Likelihood Function**  
+$p(Y|Z)p(Z|X,T,M)$ 
+
+<aside class="notes"> $Z$ represents latent variables $Z_1,...,Z_n\stackrel{iid}{\sim}N(G(x),1)$ given that 
+
+$$Y_i\begin{cases}
+1 if Z_n > 0,  
+\\0 if Z_n \leq 0
+\end{cases}$$ 
+</aside> 
+
+**Regularization Prior**  
+$p(\mu_{ij}|T_j)$  prior distribution of the terminal node parameters to $\Uparrow$ probability $E(Y|x)$ in $y_{min}$ and $y_{max}$.  
+
+$p(T_j)$ prior on $T_j$ tree & includes three considerations: tree size, selection of predictors, and selection of values for splitting rules.  
+  
+
+**Posterior Sampling**  
+Large parameter space $\Rightarrow$ intractable calculations $\Rightarrow$  MCMC algorithm comprised of Gibbs sampler to sample from posterior $\Rightarrow$ gravitate toward regions of high posterior probability. <br>
+$\Downarrow$  
+
+<div style="color:#ff0101">   
+**Bayesian inferences about the estimation of f(x), predictions of y, posterior uncertainty, and the marginal effect of one or more predictors on the response. Model free variable selection.**    
+</div>
+</small>
+
+##Random Forests {data-background=#fff}    
+<br>  
+
+- Bagging and random selection of features.      
+  
+- Bagging  
+    + Classification models are fit to a collection of bootstrap samples,  $\textbf{Z}^{*b}, b = 1,2,...,\textbf{B}$,  
+    + Resulting class votes are combined and the overall classification is then based on a majority vote. 
+    
+- Introduces random selection of input variables in tree-growing process.  
+   
+- Involves growing $B$ trees, ${T(x;\theta{_b})}^{B}_1$ via bootstrapped data where a number of input variables, $m$, randomly selected as candidates for tree splits.  
+  
+##Logistic Regression {data-background=#fff}   
+<br>  
+
+- Logistic regression modifies linear probability model with logistic function to bound probability estimates 0-1.  
+<br>  
+
+  $P(y=1|\textbf{x})=G(\beta_0+\beta_1x_1+...+\beta_kx_k)$    
+    
+where    
+  
+  $G(z) = exp(z)/[1+exp(z)]$  
+
+<br>  
+    
+- Fit using maximum likelihood. $\boldsymbol{\hat\beta}$ is maximized by setting the derivatives \begin{equation}L(\boldsymbol\beta)=\Sigma^n_{i=1}l_i(\boldsymbol\beta)\end{equation} to zero and solving.  
+   
+  
+
+##Samples {data-background=#fff}   
+<br>  
+<div id="left">
+######Study 1  
+
+
+- Youths who received PSRA/PRA. 
+- July 1, 2008 to June 30, 2014.  
+- Cohort 1: n = 15,244.     
+- Cohort 2: n = 4,587.      
+  
+</div>  
+
+<div id="left">
+ 
+######Study 2  
+
+
+  
+- Youths eligible for detention.    
+- CY 2014 to 2016.  
+- n = 5,793.  
+  
+
+</div>  
+  
+##Study 1 Variables {data-background=#fff}  
+  
+<div id="left">  
+<br>  
+  
+#####Delinquency History  
+<small>
+Age at 1st Offense  
+Felonies   
+Misdemeanors  
+Against Person Felonies  
+Weapons Offenses    
+Against Person Misdemeanors  
+Orders to Detention  
+Orders to JJS Custody  
+Escapes  
+Failure to Appear Warrants  
+</small>  
+  
+  
+<br>  
+
+#####Demographics  
+<small>
+Gender  
+</small> 
+  
+</div>  
+
+<div id="left">  
+<br>  
+  
+#####Social Situtation  
+<small>
+School  
+Friends  
+Child Welfare  
+Runaway/Kicked Out  
+Household Members Criminal/Delinquency History  
+Compliance with Parental Rules  
+Substance Use  
+Suspected Victim of Abuse/Neglect  
+Mental Health  
+</small>
+  
+<br>   
+  
+  
+  
+  
+#####Outcome  
+<small>
+Recidivism defined as adjudication on a new charge within one year   
+</small> 
+</div>  
+
+##Study 2 Variables {data-background=#fff}
+
+
+<div id="left">  
+<br>  
+  
+##### Delinquency History  
+<small>
+Prior Sex Offense                     
+Pre Sex Offense                        
+Prior Overall Referral               
+Pre Overall Referral                 
+Prior Felony Referral               
+Pre Felony Referral                  
+Prior Misdemeanor Referral           
+Pre Misdemeanor Referral             
+Prior Drugrelated Referral            
+Pre Drugrelated Referral              
+Prior Violent Referral               
+Pre Violent Referral                  
+Prior Against A Person Referral      
+Pre Against A Person Referral        
+Prior Against Property Referral      
+Pre Against Property Referral        
+Prior Against Public Order Referral  
+Pre Against Public Order Referral    
+Prior Contempt                       
+Pre Contempt  
+</small>  
+</div>
+
+
+
+<div id="left">  
+<br>  
+  
+##### Demographics   
+<small>
+Age at First Felony or Misdemeanor  
+Gender  
+</small>  
+   
+
+##### System Contact  
+<small>
+Prior Juvenile Justice Services      
+Prior Community Placement              
+Prior Secure Care    
+Prior Division of Child and Family Services  
+Prior Probation                              
+Prior Order to Detention   
+</small>   
+  
+
+
+##### Intake Offense   
+<small>
+Severity  
+Against A Person   
+Against Property      
+Against Public Order   
+</small>   
+  
+
+#####Outcome  
+<small>
+Recidivism as defined as collection of a charge for a new offense within 100 days.  
+</small> 
+</div>  
+##Procedures {data-background=#fff}  
+<br>  
+<div id="left">  
+  
+#####Study 1  
+
+
+1. Define training & test.    
+2. Build three models.  
+3. Classification threshold.    
+4. Test performance.    
+  
+
+</div>  
+  
+<div id="left">   
+
+#####Study 2  
+
+1. Define training & test.    
+2. Variable selection.  
+3. Magnitude and direction.     
+4. Classification threshold.    
+5. Define tools.    
+6. Test performance.  
+  
+  
+</div>  
+
+    
+
+# Results  
+  
+##Study 1 {data-background=#fff}   
+<br>  
+
+```{r fig.margin=TRUE,echo=FALSE,warning=FALSE,message=FALSE}
+# load(file="PSRA_roc")
+
+# 
+# PSRA_bart_roc_data <- roc(PSRA_roc_bart$PSRA_yfm_test_bart,PSRA_roc_bart$PSRA_Bart_pp)
+# 
+# PSRA_rf_roc_data <- roc(PSRA_roc_rf$PSRA_yfm_test,PSRA_roc_rf$PSRA_pp_forest)
+# 
+# PSRA_lg_roc_data <- roc(PSRA_roc_lg$PSRA_yfm_test,PSRA_roc_lg$PSRA_pp_lg)
+# 
+# TPR <- c(paste(PSRA_bart_roc_data$sensitivities))
+# FPR <- c(paste(PSRA_bart_roc_data$sensitivities))
+
+# roc_plot <- ggplot()+geom_line(aes(y=PSRA_bart_roc_data$sensitivities,x=(1-PSRA_bart_roc_data$specificities),color="BART",label=TPR))+
+#   ylab("True Positive Rate")+
+#   xlab("False Positive Rate")+
+#   ggtitle("Receiver Operating Characteristic Curve, PSRA",subtitle = "Outcome 1")+
+#   geom_line(aes(y=PSRA_rf_roc_data$sensitivities,x=(1-PSRA_rf_roc_data$specificities),color="Random Forests"))+
+#   geom_line(aes(y=PSRA_lg_roc_data$sensitivities,x=(1-PSRA_lg_roc_data$specificities),color="Logistic Regression"))+
+#   scale_color_manual(values=c("BART"="#dd0100", "Random Forests"="grey","Logistic Regression"="#333333"))+ 
+#   theme_wsj()+
+#   theme(legend.position = "none")
+  
+  
+
+
+# ggplotly(roc_plot,tooltip="text")
+
+
+AUC_table <- matrix(ncol=3,nrow=6)
+
+rownames(AUC_table) <- c("Felony or Misdemeanor","Felony","Misdemeanor","Felony or Misdemeanor","Felony","Misdemeanor")
+
+AUC_table[,1] <- c(0.6945,0.7101,0.6903,"0.6623*",0.6154,"0.6514*")
+
+AUC_table[,2] <- c(0.6912,0.7113,0.6871,0.6537,0.6113,0.6436)
+
+AUC_table[,3] <- c(0.6634,0.6857,0.6584, 0.6445,0.6125,0.6345)
+
+colnames(AUC_table) <- c("BART","Logistic Regression","Random Forests")
+
+kable(AUC_table,booktabs=TRUE,row.names = TRUE,caption="Study 1 Results, AUC")%>%
+  group_rows("PSRA - cohort 1",1,3)%>%
+  group_rows("PRA - cohort 2",4,6)%>%
+  footnote(general="*Significantly greater than the logistic regression AUC")
+
+```
+  
+
+##Study 1 {data-background=#fff}  
+
+<br>  
+
+```{r echo=FALSE, message=FALSE,warning=FALSE,fig.cap="Study 1 Results, Somers' d"}
+
+somers_table <- matrix(ncol=3,nrow=6)
+
+somers_table[,1] <- c(0.3329, 0.3902, 0.3236, 0.2949, 0.2033, 0.2770)
+
+somers_table[,2] <- c(0.3294, 0.3788, 0.3219, 0.2816, 0.167, 0.2670)
+
+somers_table[,3] <- c(0.2942, 0.3172, 0.2867,0.2468, 0.1997, 0.2273)
+
+rownames(somers_table) <- c("Felony or Misdemeanor","Felony","Misdemeanor","Felony or Misdemeanor","Felony","Misdemeanor")
+
+colnames(somers_table) <- c("BART","Logistic Regression","Random Forests")
+
+kable(somers_table,booktabs=TRUE,row.names = TRUE,caption="Study 1 Results, Somers' d")%>%
+  group_rows("PSRA - cohort 1",1,3)%>%
+  group_rows("PRA - cohort 2",4,6)
+
+```
+  
+
+
+##Study 2 {data-background=#fff}  
+
+<br>  
+  
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+drat_table <- matrix(ncol=3,nrow=3)  
+  
+drat_table[,1] <- c("0.6933*",0.2984,0.6492)
+
+drat_table[,2] <- c(0.6734,0.2689,0.6344)
+
+drat_table[,3] <- c("0.6922*",0.2815,0.6407)
+
+colnames(drat_table) <- c("BART","Logistic Regression","Random Forests")
+
+rownames(drat_table) <- c("AUC","Somers' d","Balanced Accuracy")
+
+kable(drat_table,booktabs=TRUE,caption="DRAT Predictive Validity Results")%>%
+  footnote(general="*Significantly greater than the logistic regression AUC")
+
+```
+
+
+
+
+
+
+#Discussion  
+
+##Implications {data-background="capitol.jpg"}  
+
+<br>  
+
+<div id="left">  
+######Research  
+- Support for tree-based approaches in research.  
+- Why take the risk?  
+</div>  
+
+<div id="left">  
+  
+######Policy  
+  
+- Update current risk assessment.  
+- Support use of best available method.  
+- Evaluate performance and update over time.  
+- Support data system and quality.  
+  
+
+</div>
+  
+## Limitations & Future Research {data-background=#fff}  
+
+- Follow-up excludes adult system.  
+- Risk assessments are imperfect.    
+- Data quality.  
+- Incorporate more items.  
+- Expand scope (individual $\rightarrow$ institution/system).  
+- Misclassification costs.  
+ 
+  
+  
+  
+#References    
+
+<small>  
+Andrews, D. A. (2001). Principles of Effective Correctional Programs. In L. Motiuk, & R. C. Serin, Compendium 2000 on Effective Correctional Programming. Ottawa: Correctional Services of Canada.
+
+Andrews, D. A., & Dowden, C. (2005). Managing Correctional Treatment for Reduced Recidivism: A Meta-Analytic Review of Programme Integrity. Legal and Criminal Psychology,, 173-187.
+
+Andrews, D. A., & Dowden, C. (2006). Risk Principle of Case Classificatoin in Correctional Treatment: A Meta-Analytic Investigation. International Journal of Offender Therapy and Comparative Criminolog, 88-100.
+
+Andrews, D. A., & Dowden, C. (2007). The Risk-Need- Responsivity Model of Assessment and Human Service in Prevention and Corrections: Crime- Prevention Jurisprudence. Canadian Journal of Criminology and Criminal Justice, 439-464.
+
+Andrews, D. A., Bonta, J., & Hoge, R. D. (1990). Classification of Effective Rehabilitation: Rediscovering Psychology. Criminal Justice and Behavior, 19-52.
+
+Andrews, D. A., Bonta, J., & Wormith, J. S. (2006). The Recent Past and Near Future of Risk Assessment. Crime & Delinquency, 7-27.
+
+Aos, S., Barnoski, R., & Lieb, R. (2006). Evidence-Based Adult Corrections Programs: What Works and What Does Not. Olympia: Washington State Institute for Public Policy.
+
+Baio, G. (2013). Bayesian Methods in Health Economics. Boca Rotan: Taylor & Francis Group.
+
+</small>  
+
+##References {data-background="bricks.jpg"}  
+<small>  
+Baird, C. (2009). A Question of Evidence: A Critique of Risk Assessment Models Used in the Justice System. Madison: National Council of Crime and Delinquency.
+
+Baird, C., Heinz, R., & Bemus, B. (1979). The Wisonsin Case Classification Staff Deployment Project: Two-Year Follow-Up Report. Madison, WI: Wisconsin Division of Correnctions.
+
+Barnoski, R. (2004). Assessing Risk for Re-Offense: Validating the Washington State Juvenile Court Assessment. Olympia: Washington State Institute for Public Policy.
+
+Berk, R. (2012). Criminal Justice Forecasts of Risk: A Machine Learning Approach. New York: Springer.
+
+Bitna, K., Merlo, A. V., & Benekos, P. J. (2013). Effective Correctional Intervention Programmes for Juveniles: Review and Synthesis of Meta-Analytic Evidence. 169-189.
+
+Blattenberger, G., & Fowles, R. (1995). Road Closures: Combining Data and Expert Opinion. In C. Gatsonis, J. S. Hodges, R. E. Kass, & N. D. Singpurwalla, Case Studies in Bayesian Statistics, Volume II. New York: Springer.
+
+Bleich, J., & Berk, R. (2015). Extensions and Applications of Ensemble-of-Trees Methods in Machine Learning. Doctoral Dissertation. ProQuest.
+
+Bleich, J., Kapelener, A., George, E. I., & Jensen, S. T. (2014). Variable Selection for BART: An Application to Gene Regulation. The Annals of Applied Statistics, 1750-1781.
+</small>  
+  
+##References {data-background="bricks.jpg"}  
+
+<small>  
+Bonta, J., & Andrews, D. A. (2017). The Psychology of Criminal Conduct (6th ed.). New York: Taylor & Francis.
+
+Bonta, J., & Wormith, J. S. (2013). Applying the Risk-Need-Responsivity Principles to Offender Assessment. In L. A. Craig, T. A. Grannon, & D. Louise, What Works in Offender Rehabilitation (pp. 71-93). Malden: John Wiley & Sons.
+
+Bonta, J., Rugge, T., Scott, T., Bourgen, G., & Yessine, A. (2008). Exploring the Black Box of Community Supervision. Journal of Offender Rehabilitation, 248-270.
+
+Chipman, H. A., George, E. I., & McCulloch, R. E. (2010). BART: Bayesian Additive Regression Trees. The Annals of Applied Statistics, 266-298.
+
+Chipman, H., & Rob, M. (n.d.). BayesTree: Bayesian additive regression trees. Retrieved from https://CRAN.R-project.org/package=BayesTree
+
+Chipman, H., George, E., Lemp, J., & McCulloch, R. (2010). Bayesian Flexible Modeling of Trip Duration. Transportation Research Part B, 686-698.
+
+DeWitt, J. R., Poulson, R. N., & Wetherly, E. (2016). The Utah Pre-Screen Risk Assessment (PSRA) and the Protective and Risk Assessment (PRA) Validation Study II. Salt Lake City: Utah Adminstrative Office of the Courts and Division of Juvenile Justice Services.
+
+DeWitt, J., & Lizon, R. (2008). The Utah Pre-Screen Risk Assessment (PSRA) and the Protective and Risk Assessment (PRA) Validation Study. Salt Lake City, Utah: Utah Adminstrative Office of the Courts and Division of Juvenile Justice Services.
+
+</small>  
+  
+##References {data-background="bricks.jpg"}  
+<small>  
+Dowden, C., & Andrews, D. A. (2004). The Importance of Staff Practice in Delivering Effective Correctional Treatment: A Meta-Analytic Review of Core Correctional Practice. nternational Journal of Offender Therapy and Comparative Criminology, 203-214.
+
+Freedman, D. A. (2010). Statistical Models and Causal Inference: A Dialogue with the Social Sciences. (D. Collier, J. S. Sekhon, & P. B. Stark, Eds.) New York: Cambridge University Press.
+
+Friedman, J. H. (2001). Greedy Function Approximation: A Gradient Boosting Machine. Annals of Statistics, 1189-1232.
+
+Gatti, U., Tremblay, R. E., & Vitaro, F. (2009). Iatrogenic Effect of Juvenile Justice. Child Psychology and Psychiatry, 991-998.
+
+Gendreau, P. (1996). Principles of Effective Intervention With Offenders. In A. Harland, Choosing Correctional Options That Work: Defining the Demand and Evaluating the Suppl (pp. 117-130). Thousand Oaks: Sage Publications.
+
+Gendreau, P., French, S. A., & Taylor, A. (Revised 2002). What Works (What Doesn't Work). Invited Submission to the International Community Corrections Monograph Series Project.
+
+Goodkind, Sara. (2005). Gender-Specific Services in the Juvenile Justice System: A Critical Examination. Affilia-journal of Women and Social Work - AFFILIA J WOMEN SOC WORK. 20. 52-70. 10.1177/0886109904272061.
+
+</small>  
+  
+##References {data-background="bricks.jpg"}  
+<small>  
+Grove, W. M., Zald, D. H., Lebow, S. B., Snitz, E. B., & Nelson, C. (2000). Clinical Versus Mechanical Prediction: A Meta-Analysis. Psychological Assessment, 19-30.
+
+Hamilton, Z., Kigerl, A., Campagna, M., Barnoski, R., Lee, S., Van Wormer, J., & Block, L. (2016). Designed to Fit: The Development and Validation of the STRONG-R Recidivism Risk Assessment. Criminal Justice and Behavior, 230-263.
+
+Harris, A., Evans, H., & Beckett, K. (2010). Drawing Blood for Stones: Legal Debt and Social Inequality in the Contemporary United States. American Journal of Sociology, 1753-1799.
+
+Harris, A., Evans, H., & Beckett, K. (2010). Drawing Blood from Stones: Legal Debt and Social Inequality in the Contemporary United States. American Journal of Sociology, 1753-1799.
+
+Harris, G. T., M., E. R., Quinsey, V. L., Lalumiere, M. L., Boer, D., & Lang, C. (2003). A Mulitsite Comparison of Actuarial Risk Instruments for Sex Offenders. Psychological Assessment.
+
+Harris, G. T., Rice, M. E., Quinsey, V. L., Lalumiere, M. L., Boer, D., & Lang, C. (2003). A Mulitsite Comparison of Actuarial Risk Instruments for Sex Offenders. Psychological Assessment.
+
+Hastie, T., Tibshirani, R., & Friedman, J. (2017). The Elements of Statistical Learning: Data Mining, Inference, and Prediction. New York: Springer .
+
+Hill, B. M. (1986). Some Subjective Bayesian Considerations in the Selection of Models. Econometric Reviews, 191-246.
+
+</small>  
+  
+##References {data-background="bricks.jpg"}  
+<small>  
+Homan, B., & Ziedenberg, J. (2007). The Dangers of Detention: The Impact of Incarcerating Youth in Detention and Other Secure Facilities. Retrieved March 2016, from http://www.aecf.org/resources/2014-juvenile-detention-alternatives-initiative-progress-report/: http://www.justicepolicy.org/images/upload/06-11_rep_dangersofdetention_jj.pdf
+
+Howell, J. C. (2003). Preventing & Reducing Juvenile Delinquency. Thousand Oaks: Sage Pulbications.
+
+Juvenile Justice Oversight Committee. (n.d.). HB 239 - Juvenile Justice Amendments. Retrieved March 2018, from Utah Board of Juvenile Justice, Utah Commission on Criminal and Juvenile Justice: https://justice.utah.gov/Juvenile/hb239.html
+
+Kapelener, A., & Bleich, J. (2016). bartMachine: Machine Learning with Bayesian Additive Regression Trees. Journal of Statistical Software, 1-40.
+
+Kennealy, P. J., Skeem, J. L., Manchak, S. M., & Louden, J. E. (2012). Firm, Fair, and Caring Officer- Offender Relationships Protect Against Supervision Failure. Law and Human Behavior, 496-505.
+
+KiDeuk, K., & Duwe, G. (2016). Improving the Performance of Risk Assessments. In F. Taxman, Handbook on Risk and Need Assessment: Theory and Practice (pp. 114-139). Routledge.
+
+Ladenberger, N. A., & Lipsey, M. W. (2005). A Meta- Analysis of Factors Associated with Effective Treatment. Journal of Experimental Criminology.
+
+</small>  
+
+##References {data-background="bricks.jpg"}  
+<small> 
+Ladenberger, N. A., & Lipsey, M. W. (2005). The Positive Effects of Cognitive-Behavioral Programs for Criminal Offenders. Journal of Experimental Criminology, 451-476.
+
+Latessa, E. J., & Lowenkamp, C. (2006). What Works in Reducing Recidivism. University of St. Thomas Law Journal, 521-535.
+
+Latessa, E. J., & Lowenkamp, C. (2010). The Role of Offender Risk Assessment: A Policy Maker Guide. Victims & Offenders, 203-219.
+
+Lipsey, M. W. (2009). The Primary Factors that Characterize Effective Interventions with Juvenile Offenders: A Meta-Analytic Review. Victims & Offenders, 124-147.
+
+Lipsey, M. W., Chapman, G. L., & Nana, A. L. (2001). Cognitive-Behavioral Programs for Offenders. The Annals of the American Academy of Political and Social Science, 144-157.
+
+Lowenkamp, C. T., Latessa, E. J., & Holsinger, A. M. (2006). The Risk Principle in Action: What Have We Learned from 13,676 Offenders and 97 Correctional Programs? Crime & Delinquency, 77-93.
+
+Mendel, R. A. (2011). No Place for Kids: The Case for Reducing Juvenile Incarceration. Baltimore: Annie E. Casey Foundation. Retrieved March 2018, from http://www.aecf.org/m/resourcedoc/aecf-NoPlaceForKidsFullReport-2011.pdf
+
+Mendel, R. A. (2014). Juvenile Detention Alternatives Initiative Progress Report. Baltimore: Annie E. Casey Foundation. Retrieved March 2018, from http://www.aecf.org/m/resourcedoc/aecf-2014JDAIProgressReport-2014.pdf
+
+</small>  
+
+##References {data-background="bricks.jpg"} 
+
+<small> 
+Molm, L. D. (1988). The Structure and Use of Power: A Comparison of Reward and Punishment Power. Social Psychology Quarterly, 108-122.
+
+Nadolny, T. L. (2017, September). How Computers are Predicting Crime - and Potentially Impacting Your Future . Retrieved from Philly Daily News: http://www.philly.com/philly/news/crime/risk-assessment-tool-criminal-justice-reform-20170921.html
+
+Patterson, E. G. (2008). Civil Contempt and the Indigent Child Support Obligor: The Silent Return of Debtor's Prison. Cornell Journal of Law and Public Policy, 95-141.
+
+Pearson, J. (2004). Building Debt While Doing Time: Child Support and Incarceration. Judges' Journal, 5-11.
+
+Quinsey, V. L., Harris, G. T., Rice, M. E., & Cormier, C. A. (2006). Violent Offenders: Appraising and Managing Risk (2nd ed.). Washington: American Psychological Association.
+
+Rice, M. E., & Harris, G. T. (2005). Comparing Effect Sizes in Follow-up Studies: ROC Area, Cohen's d, and r. American Psychology-Law Society, 615-620.
+
+Rice, M. E., & Harris, G. T. (2005). Comparing Effect Sizes in Follow-Up Studies: ROC Area, Cohen's D, and r. American Psychology-Law Society, 615-620.
+
+</small>  
+
+
+##References {data-background="bricks.jpg"} 
+<small> 
+Schmidt, P., & Witte, A. D. (1988). Predicting Recidivism Using Survival Models. New York: Springer-Verlag.
+
+Schwalbe, C. S. (2007). Risk Assessment for Juvenile Justice: A Meta-Analysis. American Psychology-Law Society, 449-462.
+
+Schwartz, I. M., York, P., Greenwald, M., Ramos-Hernandez, A., & Feeley, L. (2016). Using Predictive Analytics and Machine Learning to Improve the Accuracy and Performance of Juvenile Justice Risk Assessment Instruments. In F. Taxman, Handbook on Risk and Need Assessment : Theory and Practice, edited by Faye S. Taxman (pp. 140-163). Routledge.
+
+Skeem, J. L., Louden, J. E., Polaschek, D., & Camp, J. (2007). Assessing Relationship Quality in Mandated Community Treatment: Blending Care With Control. Psychological Assessment, 397-410.
+
+Sparapani, R. A., Logan, B. R., McColluch, R. E., & Laud, P. W. (2016). Nonparametric Survival Analysis Using Bayesian Additive Regression Trees (BART). Statistics in Medicine, 2741-2753.
+
+Stansfield, R., & Williams, K. R. (2014). Predicting Family Violence Recidivism Using DVSI-R. Criminal Justice and Criminal Behavior, 163-180.
+
+State of Utah. (2017). Utah State Legislature. Retrieved March 2018, from H.B. 239 Juvenile Justice Amendments: https://le.utah.gov/~2017/bills/hbillenr/HB0239.pdf
+
+
+
+</small>  
+
+##References {data-background="bricks.jpg"}  
+
+<small> 
+Steinhart, D. (2006). A Practice Guide to Juvenile Detention Reform. Baltimore: Annie E. Casey Foundation. Retrieved March 2018, from http://www.aecf.org/m/resourcedoc/aecf-juveniledetentionriskassessment1-2006.pdf
+
+Taxman, F. S., & Dezember, A. (2016). The Value and Importance of Risk and Need Assessment (RNA). In F. Taxman, Corrections & Sentencing: An Overview of the Handbook Handbook on Risk and Need Assessment : Theory and Practice. Routledge.
+
+Ting, M. H., Chu, C. M., Zeng, G., Li, D., & Chng, G. (2017). Predicting Recidivism Amoung Youth Offenders: Augmenting Professional Judgement with Machine Learning Algorithms. Journal of Social Work, 1-19.
+
+Ven der Put, C. E., Stams, G. J., & Dekovic, M. (2014). Assessment in the Netherlands: The Developement of a New Scoring System. Assessment, 92-107.
+
+Waldmann, P. (2016). Genome-wide prediction using Bayesian additive regression trees. Genetics Selection Evolution.
+
+
+</small>  
+
+
+##Image Credits {data-background="trees_2.jpg"}    
+
+<a style="background-color:black;color:white;text-decoration:none;padding:4px 6px;font-family:-apple-system, BlinkMacSystemFont, &quot;San Francisco&quot;, &quot;Helvetica Neue&quot;, Helvetica, Ubuntu, Roboto, Noto, &quot;Segoe UI&quot;, Arial, sans-serif;font-size:12px;font-weight:bold;line-height:1.2;display:inline-block;border-radius:3px" href="https://unsplash.com/@priscilladupreez?utm_medium=referral&amp;utm_campaign=photographer-credit&amp;utm_content=creditBadge" target="_blank" rel="noopener noreferrer" title="Download free do whatever you want high-resolution photos from Priscilla Du Preez"><span style="display:inline-block;padding:2px 3px"><svg xmlns="http://www.w3.org/2000/svg" style="height:12px;width:auto;position:relative;vertical-align:middle;top:-2px;fill:white" viewBox="0 0 32 32"><title>unsplash-logo</title><path d="M10 9V0h12v9H10zm12 5h10v18H0V14h10v9h12v-9z"></path></svg></span><span style="display:inline-block;padding:2px 3px">Priscilla Du Preez</span></a>
+
+
+<a style="background-color:black;color:white;text-decoration:none;padding:4px 4px;font-family:-apple-system, BlinkMacSystemFont, &quot;San Francisco&quot;, &quot;Helvetica Neue&quot;, Helvetica, Ubuntu, Roboto, Noto, &quot;Segoe UI&quot;, Arial, sans-serif;font-size:12px;font-weight:bold;line-height:1.2;display:inline-block;border-radius:3px" href="https://unsplash.com/@peterlaster?utm_medium=referral&amp;utm_campaign=photographer-credit&amp;utm_content=creditBadge" target="_blank" rel="noopener noreferrer" title="Download free do whatever you want high-resolution photos from Pedro Lastra"><span style="display:inline-block;padding:2px 2px">Pedro Lastra</span></a>  
+  
+<a style="background-color:black;color:white;text-decoration:none;padding:4px 6px;font-family:-apple-system, BlinkMacSystemFont, &quot;San Francisco&quot;, &quot;Helvetica Neue&quot;, Helvetica, Ubuntu, Roboto, Noto, &quot;Segoe UI&quot;, Arial, sans-serif;font-size:12px;font-weight:bold;line-height:1.2;display:inline-block;border-radius:3px" href="https://unsplash.com/@worldsbetweenlines?utm_medium=referral&amp;utm_campaign=photographer-credit&amp;utm_content=creditBadge" target="_blank" rel="noopener noreferrer" title="Download free do whatever you want high-resolution photos from Patrick Hendry"><span style="display:inline-block;padding:2px 3px">Patrick Hendry</span></a>  
+  
+<a style="background-color:black;color:white;text-decoration:none;padding:4px 6px;font-family:-apple-system, BlinkMacSystemFont, &quot;San Francisco&quot;, &quot;Helvetica Neue&quot;, Helvetica, Ubuntu, Roboto, Noto, &quot;Segoe UI&quot;, Arial, sans-serif;font-size:12px;font-weight:bold;line-height:1.2;display:inline-block;border-radius:3px" href="https://unsplash.com/@clemono2?utm_medium=referral&amp;utm_campaign=photographer-credit&amp;utm_content=creditBadge" target="_blank" rel="noopener noreferrer" title="Download free do whatever you want high-resolution photos from Clem Onojeghuo"><span style="display:inline-block;padding:2px 3px">Clem Onojeghuo</span></a>  
+
+<a style="background-color:black;color:white;text-decoration:none;padding:4px 6px;font-family:-apple-system, BlinkMacSystemFont, &quot;San Francisco&quot;, &quot;Helvetica Neue&quot;, Helvetica, Ubuntu, Roboto, Noto, &quot;Segoe UI&quot;, Arial, sans-serif;font-size:12px;font-weight:bold;line-height:1.2;display:inline-block;border-radius:3px" href="https://unsplash.com/@nelly?utm_medium=referral&amp;utm_campaign=photographer-credit&amp;utm_content=creditBadge" target="_blank" rel="noopener noreferrer" title="Download free do whatever you want high-resolution photos from Nelly Volkovich"><<span style="display:inline-block;padding:2px 3px">Nelly Volkovich</span></a>
+  
+#Appendix  
+
+
+##Study 1 Thresholds {data-background=#fff}  
+<center>
+```{r marginfigure, fig.margin = FALSE, fig.cap = "Identification of Classification Threshold Example <br>(BART, PSRA Cohort)", cache=TRUE, message=FALSE,echo=FALSE,WARNING=FALSE,fig.height=5}
+
+load(file = "Thresholds")
+library(plot3D)
+
+aucPSRAbart$low <- aucPSRAbart$`Low Cut Score`
+
+aucPSRAbart$high <- aucPSRAbart$`High Cut Score`
+
+aucPSRAbart$AUC <- round(aucPSRAbart$AUC,4)
+
+aucPSRAbart$high <- round(aucPSRAbart$high,4)
+
+aucPSRAbart$low <- round(aucPSRAbart$low,4)
+
+plot_ly(aucPSRAbart, x = aucPSRAbart$low, y = aucPSRAbart$high, z = aucPSRAbart$AUC,marker = list(color = aucPSRAbart$AUC, colorscale = list(c(0,"#F9F9F9"),c(0.7,"#e0e0e0"),c(1,"#ff0101")), showscale = TRUE)) %>%
+  add_markers(hoverinfo = 'text',text=~paste("High Cut Score: ",high,"<br> Low Cut Score: ",low,"<br> AUC: ",AUC)) %>%
+  layout(scene = list(xaxis = list(title ='High Cut Score'),
+                      yaxis = list(title = 'Low Cut Score'),
+                     zaxis = list(title = 'AUC',range=c(0.5,0.8))
+        )
+      ,paper_bgcolor='transparent',scene = list(
+      camera=list(
+        eye = list(x=1.87, y=0.88, z=-0.64)
+        )
+      ))
+
+```
+ 
+</center>
+
+##Study 1 {data-background=#fff}  
+
+<center>
+
+```{r fig.margin=TRUE, fig.fullwidth=TRUE,fig.width=10,fig.height=5,fig.cap="Number of Youths by Risk Level <br> Cohort 1 (left), Cohort 2 (right)"}
+
+load(file = "DRAT_numbers")
+
+PSRArisk_2 <- PSRArisk
+
+PSRArisk_2$Model <- "PSRA"
+
+rfrisk_2 <- rfrisk
+
+rfrisk_2$Model <- "Random Forests"
+
+PSRAlgrisk_2 <- PSRAlgrisk
+
+PSRAlgrisk_2$Model <- "Logistic Regression"
+
+PSRAlgrisk_2$lg_Risk <- ifelse(PSRAlgrisk_2$lg_Risk==1,"Low",ifelse(PSRAlgrisk_2$lg_Risk==2,"Moderate","High"))
+
+rfrisk_2$RF_Risk <- ifelse(rfrisk_2$RF_Risk==1,"Low",ifelse(rfrisk_2$RF_Risk==2,"Moderate","High"))
+
+BARTrisk_2 <- BARTrisk
+
+BARTrisk_2$Model <- "BART"
+
+BARTrisk_2$Bart_Risk <- ifelse(BARTrisk_2$Bart_Risk==1,"High",ifelse(BARTrisk_2$Bart_Risk==2,"Moderate","Low"))
+
+colnames(BARTrisk_2)[1] <- "Risk"
+
+colnames(PSRArisk_2)[1] <- "Risk"
+
+colnames(PSRAlgrisk_2)[1] <- "Risk"
+
+colnames(rfrisk_2)[1] <- "Risk"
+
+PSRArisk_2$Risk <- ifelse(PSRArisk_2$Risk=="LOW","Low",ifelse(PSRArisk_2$Risk=="MODERATE","Moderate","High"))
+
+PSRA_numbers <- rbind(BARTrisk_2[,c(1,3)],rfrisk_2[,c(1,3)],PSRAlgrisk_2[,c(1,3)])
+
+PSRA_numbers <- data.frame(table(PSRA_numbers))
+
+PSRA_numbers$Risk <- ifelse(PSRA_numbers$Risk=="Low","1. Low Risk",ifelse(PSRA_numbers$Risk=="High","3. High Risk","2. Moderate Risk"))
+
+psra_risk_class <- ggplot(data=PSRA_numbers,aes(x=Model,y=Freq,fill=Risk, color=Risk,text=paste("Youths: ",Freq,"<br>",Risk)))+
+  scale_fill_manual(values=c("#ff0101","#e0e0e0","#F9F9F9"))+
+  scale_color_manual(values=c("#30303a","#30303a","#30303a"))+
+  ylab("Youths")+
+  xlab(" ")+
+  ggtitle(" ")+
+  scale_y_continuous(labels=comma_format())+
+  theme_economist_white(gray_bg = FALSE)+
+  theme(legend.position="none",rect=element_rect(fill="black"),text=element_text(family="Helvetica"))+
+  geom_bar(position="dodge",stat="identity")
+
+
+p1 <- ggplotly(psra_risk_class,tooltip="text",paper_bgcolor='transparent')
+
+PRArisk_2 <- PRArisk
+
+PRArisk_2$Model <- "PRA"
+
+
+PRArfrisk_2 <- PRArfrisk
+
+PRArfrisk_2$Model <- "Random Forests"
+
+PRAlgrisk_2 <- PRAlgrisk
+
+PRAlgrisk_2$Model <- "Logistic Regression"
+
+PRAlgrisk_2$lg_Risk <- ifelse(PRAlgrisk_2$lg_Risk==1,"Low",ifelse(PRAlgrisk_2$lg_Risk==2,"Moderate","High"))
+
+PRArfrisk_2$RF_Risk <- ifelse(PRArfrisk_2$RF_Risk==1,"Low",ifelse(PRArfrisk_2$RF_Risk==2,"Moderate","High"))
+
+PRABARTrisk_2 <- PRABARTrisk
+
+PRABARTrisk_2$Bart_Risk <- ifelse(PRABARTrisk_2$Bart_Risk==3,"High",ifelse(PRABARTrisk_2$Bart_Risk==2,"Moderate","Low"))
+
+
+PRABARTrisk_2$Model <- "BART"
+
+PRArfrisk_2$Model <- "Random Forests"
+
+PRAlgrisk_2$Model <- "Logistic Regression"
+
+PRArisk_2$Model <- "PRA"
+
+colnames(PRABARTrisk_2)[1] <- "Risk"
+
+colnames(PRArisk_2)[1] <- "Risk"
+
+colnames(PRAlgrisk_2)[1] <- "Risk"
+
+colnames(PRArfrisk_2)[1] <- "Risk"
+
+PRArisk_2$Risk <- ifelse(PRArisk_2$Risk=="LOW","Low",ifelse(PRArisk_2$Risk=="MODERATE","Moderate","High"))
+
+PRA_numbers <- rbind(PRABARTrisk_2[,c(1,3)],PRArfrisk_2[,c(1,3)],PRAlgrisk_2[,c(1,3)])
+
+PRA_numbers <- data.frame(table(PRA_numbers))
+
+PRA_numbers$Risk <- ifelse(PRA_numbers$Risk=="Low","1. Low Risk",ifelse(PRA_numbers$Risk=="High","3. High Risk","2. Moderate Risk"))
+
+pra_risk_class <- ggplot(data=PRA_numbers,aes(x=Model,y=Freq,fill=Risk,color=Risk,text=paste("Youths: ",Freq,"<br>",Risk)))+
+  scale_fill_manual(values=c("#0101fd","#e0e0e0","#F9F9F9"))+
+  scale_color_manual(values=c("black","black","black"))+
+  ylab("Youths")+
+  xlab(" ")+
+  ggtitle(" ")+
+  scale_y_continuous(labels=comma_format())+
+  theme_economist_white(gray_bg = FALSE)+
+  theme(legend.position="none",text=element_text(family="Helvetica"))+
+  geom_bar(position="dodge",stat="identity")
+
+p2 <- ggplotly(pra_risk_class,paper_bgcolor='transparent',tooltip="text")
+
+subplot(p1, p2,shareY=TRUE)
+
+
+```
+  
+</center>  
+  
+##PDP and ICE {data-background=#fff}    
+  
+
+<center>
+```{r fig.cap="Partial Dependence Plot and ICE Curves Example <br>Prior Overall Referral Total, BART",fig.height=5}
+
+plot_1_c <- ggplot()+
+  geom_line(data=prior_overall_centered_melt,aes(x=prior_overall_centered_melt$Prior.Overall.Referral.Total,y=value,group=variable,text=paste("Estimated Value (Probit Scale): ",prior_overall_centered_melt$value,"<br>Number of Offenses: ",prior_overall_centered_melt$Prior.Overall.Referral.Total)),alpha=0.15,color="#30303a")+
+  geom_line(data=prior_overall_centered,aes(x=prior_overall_centered$`Prior Overall Referral Total`,y=prior_overall_centered$`Partial Dependence Plot`),color="#fff001",size=1.5)+
+  scale_y_continuous(limits = c(0,0.6))+
+  scale_x_continuous(breaks= seq(min(prior_overall_centered$`Prior Overall Referral Total`),max(prior_overall_centered$`Prior Overall Referral Total`),by = 5))+
+  theme_economist_white(gray_bg = FALSE)+
+  xlab(" ")+
+  ylab("Partial Effect (Probit Scale)")+
+  theme(text=element_text(size=14,family="Helvetica"))+
+  ggtitle("",subtitle="")
+
+ggplotly(plot_1_c,paper_bgcolor='transparent',tooltip=c("text","text2"))
+
+```
+</center>  
+
+##Thresholds {data-background=#fff}    
+  
+<center>  
+```{r fig.height=4, fig.cap="Classification Threshold Example (BART)"}
+
+load(file="DRAT_cut_scores")
+
+class_score_plot <- ggplot(AUC.score, aes(x=CutPoint, y=AUC))+
+  geom_point(aes(colour=AUC), size=2)+
+  scale_color_gradient(low="#30303a",high="#fff001")+
+  labs(x="Cut Off Score",y="AUC",subtitle="DRAT Risk Cut Scores (BART)")+
+  ylim(0.49,0.7)+
+  scale_x_continuous()+
+  theme_economist_white(gray_bg=FALSE)+
+  theme(legend.position = "right",text=element_text(size=14,family="Helvetica"))
+
+ggplotly(class_score_plot)
+
+```
+</center>  
+  
+##Variable Selection {data-background=#fff}  
+<center>  
+```{r fig.fullwidth=TRUE,warning=FALSE,message=FALSE,echo=FALSE,fig.marginTRUE,fig.cap="BART Variable Importance Test",fig.height=5.5}
+load("DRAT_Results")
+
+bart_plot <- ggplot(DRAT_vars_plot)+
+  geom_point(aes(text=paste("Inclusion Proportion: ",DRAT_vars_plot$true_inclusion_proportion_average,"<br>Null Distribution: ",DRAT_vars_plot$null_distribution_inclusion_proportion),x=reorder(DRAT_vars_plot$predictor,-DRAT_vars_plot$true_inclusion_proportion_average),y=DRAT_vars_plot$true_inclusion_proportion_average,color=DRAT_vars_plot$null_distribution_inclusion_proportion<DRAT_vars_plot$true_inclusion_proportion_average,shape=DRAT_vars_plot$null_distribution_inclusion_proportion<DRAT_vars_plot$true_inclusion_proportion_average))+
+  geom_bar(aes(x=DRAT_vars_plot$predictor,y=DRAT_vars_plot$null_distribution_inclusion_proportion),stat="identity",width=0.05,fill="gray")+
+  theme_economist_white(base_size=8,gray_bg = FALSE)+
+  theme(axis.line=element_blank(),axis.text.x = element_text(angle = 90, hjust = 1),axis.ticks=element_blank(),legend.position="none",text=element_text(family="Helvetica"))+
+  xlab("Predictors")+
+  ylab("Null vs True Inclusion")+
+  ggtitle("")+
+  scale_color_manual(name="Variable Importance Threshold",breaks=c("FALSE", "TRUE"),labels=c("Did Not Surpass", "Surpassed"),values=c("#30303a","#fff001"))+
+  scale_shape_manual(name="Variable Importance Threshold",breaks=c("FALSE", "TRUE"),labels=c("Did Not Surpass", "Surpassed"),values=c(16,15))
+
+ggplotly(bart_plot,paper_bgcolor='transparent',tooltip="text")
+
+```
+</center>
+  
+##Variable Selection {data-background=#fff}  
+
+<center>
+```{r warning=FALSE,message=FALSE,echo=FALSE,fig.margin=TRUE,fig.cap="Random Forests Variable Importance Test",fig.height=5.5}
+
+DRAT_rf_varimp3 <- data.frame(DRAT_rf_varimp2[-22,])
+
+row_names_rf <- data.frame(rownames(DRAT_rf_varimp2))
+
+row_names_rf <- row_names_rf[-22,]
+
+rownames(DRAT_rf_varimp3) <- row_names_rf
+
+colnames(DRAT_rf_varimp3) <- colnames(DRAT_rf_varimp2)
+
+DRAT_rf_imp2 <- c("Intake Offense Severity",
+                  "Pre Overall Referral Total",
+                  "Prior Order to Detention Flag",
+                  "Intake Offense Against Property Flag",
+                  "Prior Misdemeanor Referral Total",
+                  "Prior Against Public Order Referral Total",
+                  "Prior Division of Child and Family Services Flag",
+                  "Prior Felony Referral Total",
+                  "Intake Offense Against Public Order Flag",
+                  "Prior Against Property Referral Total",
+                  "Prior Juvenile Justice Services Flag",
+                  "Pre Against A Person Referral Total",
+                  "Prior Contempt Total",
+                  "Pre Against Public Order Referral Total",
+                  "Pre Drugrelated Referral Flag",
+                  "Prior Overall Referral Total",
+                  "Prior Against A Person Referral Total",
+                  "Pre Violent Referral Flag",
+                  "Prior Sex Offender Flag",
+                  "Pre Sex Offender Flag",
+                  "Prior Secure Care Flag",
+                  "Pre Against Property Referral Total",
+                  "Prior Probation Flag",
+                  "Gender",
+                  "Pre Contempt Total",
+                  "Age at First Felony or Misdemeanor Referral",
+                  "Pre Felony Referral Total",
+                  "Intake Offense Against A Person Flag",
+                  "Prior Community Placement Flag",
+                  "Pre Misdemeanor Referral Total",
+                  "Prior Violent Referral Flag",
+                  "Prior Drugrelated Referral Flag")
+
+rf_var_plot <- ggplot(DRAT_rf_varimp3)+
+  geom_point(aes(x=rownames(DRAT_rf_varimp3),y=DRAT_rf_varimp3$`Conditional Variable Importance`,color=DRAT_rf_varimp3$`Conditional Variable Importance`>0,shape=DRAT_rf_varimp3$`Conditional Variable Importance`>0,text=paste("Conditional Variable Importance: ",DRAT_rf_varimp3$`Conditional Variable Importance`)))+
+  theme_economist_white(base_size=8,gray_bg = FALSE)+
+  theme(axis.line=element_blank(),axis.text.x = element_text(angle = 90, hjust = 1),axis.ticks=element_blank(),legend.position="none",text=element_text(family="Helvetica"))+
+  xlab("Predictors")+
+  ylab("Conditional Variable Importance")+
+  ggtitle("")+
+  scale_color_manual(name="Variable Importance Threshold",breaks=c("FALSE", "TRUE"),labels=c("Zero or Below", "Above Zero"),values=c("#30303a","#fff001"))+
+  scale_shape_manual(name="Variable Importance Threshold",breaks=c("FALSE", "TRUE"),labels=c("Zero or Below", "Above Zero"),values=c(16,15))+
+  scale_x_discrete(limits=c(DRAT_rf_imp2))
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=1,y=0,linetype="dotted",size=.25,color="black",xend=1,yend=0.00009)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=2,y=0,linetype="dotted",size=.25,color="black",xend=2,yend=0.000055)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=3,y=0,linetype="dotted",size=.25,color="black",xend=3,yend=0.000045)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=4,y=0,linetype="dotted",size=.25,color="black",xend=4,yend=0.000045)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=5,y=0,linetype="dotted",size=.25,color="black",xend=5,yend=0.000023)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=6,y=0,linetype="dotted",size=.25,color="black",xend=6,yend=0.000023)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=7,y=0,linetype="dotted",size=.25,color="black",xend=7,yend=0.000015)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=8,y=0,linetype="dotted",size=.25,color="black",xend=8,yend=0.000015)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=9,y=0,linetype="dotted",size=.25,color="black",xend=9,yend=0.000015)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=10,y=0,linetype="dotted",size=.25,color="black",xend=10,yend=0.000005)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=11,y=0,linetype="dotted",size=.25,color="black",xend=11,yend=0.000005)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=12,y=0,linetype="dotted",size=.25,color="black",xend=12,yend=0.000005)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=13,y=0,linetype="dotted",size=.25,color="black",xend=13,yend=0.000005)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=14,y=0,linetype="dotted",size=.25,color="black",xend=14,yend=0.000005)
+
+rf_var_plot <- rf_var_plot+
+    geom_segment(x=15,y=0,linetype="dotted",size=.25,color="black",xend=15,yend=0.000005)
+
+ggplotly(rf_var_plot,paper_bgcolor='transparent',tooltip="text")
+```
+</center>  
+  
+## Variable Selection {data-background=#fff}  
+
+```{r echo=FALSE,warning=FALSE,message=FALSE,fig.cap="Logistic Regression Variable Selection and Estimated Coefficients"}
+load("Lg_results")
+
+summary.AIC.model <- summary(AIC.model)
+
+summary_AIC <- (summary.AIC.model$coefficients)
+
+summary_AIC <- data.frame(summary_AIC)
+
+
+rownames(summary_AIC) <- c("Intercept",
+                           "Intake Offense Against Property (Compared to Against Person)",
+                           "Intake Offense Against Public Order (Compared to Against Person)",
+                           "Intake Offense Felony 2 (Compared to Felony 1)",
+                           "Intake Offense Felony 3 (Compared to Felony 1)",
+                           "Intake Offense Misdemeanor A (Compared to Felony 1)",
+                           "Intake Offense Misdemeanor B (Compared to Felony 1)",
+                           "Prior Juvenile Justice Services Custody Flag",
+                           "Prior Order to Detention Flag",
+                           "Prior Misdemeanor Referral Total",
+                           "Prior Felony Referral Total")
+
+colnames(summary_AIC) <- c("Esimate","Std. Error","z-value","Pr(>|z|)")
+
+summary_AIC <- round(summary_AIC,4)
+
+summary_AIC <- summary_AIC[,c(1,4)]
+
+kable(summary_AIC,booktabs=TRUE,caption="Logistic Regression Variable Selection and Estimated Coefficients")
+  
+```
+  
+##Study 2 {data-background=#fff}  
+
+
+<center> 
+```{r fig.cap="Number of Youths by Risk Level",fig.height=5,fig.width=6}
+
+DRAT_scores_test_combined$`DRAT Risk Level 2` <- as.factor(ifelse(DRAT_scores_test_combined$`DRAT Risk Level`=="Low Risk",0,1))
+
+DRAT_scores_test_combined_rf$`DRAT Risk Level 2` <- as.factor(ifelse(DRAT_scores_test_combined_rf$`DRAT Risk Level`=="Low Risk",0,1))
+
+DRAT_scores_test_combined_lg$`DRAT Risk Level 2` <- as.factor(ifelse(DRAT_scores_test_combined_lg$`DRAT Risk Level`=="Low Risk",0,1))
+
+
+DRAT_scores_test_combined$Model <- "BART"
+
+DRAT_scores_test_combined_lg$Model <- "Logistic Regression"
+
+DRAT_scores_test_combined_rf$Model <- "Random Forests"
+
+
+colnames(DRAT_scores_test_combined)[15] <- "DRAT Risk Level"
+
+colnames(DRAT_scores_test_combined_rf)[25] <- "DRAT Risk Level"
+
+colnames(DRAT_scores_test_combined_lg)[13] <- "DRAT Risk Level"
+
+DRAT_scores_test_plot <- rbind(DRAT_scores_test_combined[,c(15,16)],DRAT_scores_test_combined_rf[,c(25,26)],DRAT_scores_test_combined_lg[,c(13,14)])
+
+DRAT_scores_test_plot <- data.frame(table(DRAT_scores_test_plot))
+
+DRAT_scores_test_plot$DRAT.Risk.Level <- ifelse(DRAT_scores_test_plot$DRAT.Risk.Level==0,"1. Low Risk","2. High Risk")
+
+
+drat_risk_class <- ggplot(data=DRAT_scores_test_plot,aes(x=Model,y=Freq,fill=DRAT.Risk.Level,color=DRAT.Risk.Level,text=paste("Youths: ",Freq,"<br>",DRAT.Risk.Level)))+
+  scale_fill_manual(values=c("#fff001","#F9F9F9"))+
+  scale_color_manual(values=c("#30303a","#30303a"))+
+  ylab("Youths")+
+  xlab(" ")+
+  ggtitle("")+
+  scale_y_continuous(labels=comma_format())+
+  theme_economist_white(gray_bg = FALSE)+
+  theme(legend.position="none",text=element_text(family="Helvetica"))+
+  geom_bar(position="dodge",stat="identity")
+
+ggplotly(drat_risk_class,paper_bgcolor='transparent',tooltip="text")
+  
+```
+  
+</center>
+
+
+
+
+#End 
