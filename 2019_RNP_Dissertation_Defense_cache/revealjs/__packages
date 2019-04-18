@@ -1,0 +1,13 @@
+base
+ggthemes
+readr
+psych
+knitr
+kableExtra
+ggplot2
+plotly
+visNetwork
+rpart
+scales
+bindrcpp
+plot3D
